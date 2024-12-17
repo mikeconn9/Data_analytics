@@ -5,6 +5,7 @@
 # Use Add instead of append
 # "remove" a specific element, "pop" remove an arbitrary element
 
+# Convert a list to a set:
 word_set = set(["spam","eggs","sausage"])
 print(word_set)
 
