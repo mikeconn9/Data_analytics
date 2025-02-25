@@ -1,0 +1,1097 @@
+Write a solution to find the IDs of the users who visited without making any transactions and the number of times they made these types of visits.
+
+1. Analysis
+Goal: Data structure, key requirements, Driver and Target. 
+Data Structure: Customers(one)|visits(multi)|transactions(multi)
+Requirements: Visited without txns
+Driver: visits (No txn)
+Target: customers (IDs of users), number of visits (no txn)
+
+2. Raw data table
+Goal: Create a full intermediate table with raw data.
+Figure out the key fields, table join method
+
+select v.visit_id, t.transaction_id, v.customer_id
+from Visits v left join Transactions t
+on v.visit_id = t.visit_id
+
+| visit_id | transaction_id | customer_id |
+| -------- | -------------- | ----------- |
+| 1        | 12             | 23          |
+| 2        | 13             | 9           |
+| 4        | null           | 30          |
+| 5        | 9              | 54          |
+| 5        | 3              | 54          |
+| 5        | 2              | 54          |
+| 6        | null           | 96          |
+| 7        | null           | 54          |
+| 8        | null           | 54          |
+
+Expected
+| customer_id | count_no_trans |
+| ----------- | -------------- |
+| 30          | 1              |
+| 96          | 1              |
+| 54          | 2              |
+
+3. Add target fields, conditions, grouping/sorting
+Goal: Achieve the final goal.
+Figure out the target fields, conditions, grouping/sorting
+
+select a.customer_id, count(a.visit_id) count_no_trans
+from
+(
+select v.visit_id, t.transaction_id, v.customer_id
+from Visits v left join Transactions t
+on v.visit_id = t.visit_id
+) a
+where a.transaction_id is null
+group by a.customer_id
+
+Example 2:
+Write a solution to find all dates' id with higher temperatures compared to its previous dates (yesterday).
+
+select id from
+(
+select id, recordDate, temperature, 
+lag(temperature) over(order by recordDate) prev_temp,
+lag(recordDate) over(order by recordDate) prev_date
+from Weather
+order by recordDate
+) a
+where a.prev_temp is not null and a.temperature > a.prev_temp
+and datediff(a.recordDate, a.prev_date) = 1
+
+Example 3:
+select a.machine_id, round(avg(a.duration),3) processing_time from
+(
+select s.machine_id, s.process_id, s.activity_type, s.timestamp,
+(e.timestamp - s.timestamp) duration
+from Activity s join Activity e
+on s.machine_id = e.machine_id and s.process_id = e.process_id
+where s.activity_type = 'start' and e.activity_type = 'end'
+) a
+group by a.machine_id
+
+======================================
+1280. Students and Examinations 
+Description:
+
+Table: Students
+
++---------------+---------+
+| Column Name   | Type    |
++---------------+---------+
+| student_id    | int     |
+| student_name  | varchar |
++---------------+---------+
+student_id is the primary key (column with unique values) for this table.
+Each row of this table contains the ID and the name of one student in the school.
+ 
+
+Table: Subjects
+
++--------------+---------+
+| Column Name  | Type    |
++--------------+---------+
+| subject_name | varchar |
++--------------+---------+
+subject_name is the primary key (column with unique values) for this table.
+Each row of this table contains the name of one subject in the school.
+ 
+
+Table: Examinations
+
++--------------+---------+
+| Column Name  | Type    |
++--------------+---------+
+| student_id   | int     |
+| subject_name | varchar |
++--------------+---------+
+There is no primary key (column with unique values) for this table. It may contain duplicates.
+Each student from the Students table takes every course from the Subjects table.
+Each row of this table indicates that a student with ID student_id attended the exam of subject_name.
+ 
+
+Write a solution to find the number of times each student attended each exam.
+
+Return the result table ordered by student_id and subject_name.
+
+The result format is in the following example.
+
+ 
+
+Example 1:
+
+Input: 
+Students table:
++------------+--------------+
+| student_id | student_name |
++------------+--------------+
+| 1          | Alice        |
+| 2          | Bob          |
+| 13         | John         |
+| 6          | Alex         |
++------------+--------------+
+Subjects table:
++--------------+
+| subject_name |
++--------------+
+| Math         |
+| Physics      |
+| Programming  |
++--------------+
+Examinations table:
++------------+--------------+
+| student_id | subject_name |
++------------+--------------+
+| 1          | Math         |
+| 1          | Physics      |
+| 1          | Programming  |
+| 2          | Programming  |
+| 1          | Physics      |
+| 1          | Math         |
+| 13         | Math         |
+| 13         | Programming  |
+| 13         | Physics      |
+| 2          | Math         |
+| 1          | Math         |
++------------+--------------+
+Output: 
++------------+--------------+--------------+----------------+
+| student_id | student_name | subject_name | attended_exams |
++------------+--------------+--------------+----------------+
+| 1          | Alice        | Math         | 3              |
+| 1          | Alice        | Physics      | 2              |
+| 1          | Alice        | Programming  | 1              |
+| 2          | Bob          | Math         | 1              |
+| 2          | Bob          | Physics      | 0              |
+| 2          | Bob          | Programming  | 1              |
+| 6          | Alex         | Math         | 0              |
+| 6          | Alex         | Physics      | 0              |
+| 6          | Alex         | Programming  | 0              |
+| 13         | John         | Math         | 1              |
+| 13         | John         | Physics      | 1              |
+| 13         | John         | Programming  | 1              |
++------------+--------------+--------------+----------------+
+Explanation: 
+The result table should contain all students and all subjects.
+Alice attended the Math exam 3 times, the Physics exam 2 times, and the Programming exam 1 time.
+Bob attended the Math exam 1 time, the Programming exam 1 time, and did not attend the Physics exam.
+Alex did not attend any exams.
+John attended the Math exam 1 time, the Physics exam 1 time, and the Programming exam 1 time.
+
+----------------
+My solution:
+
+# Step 3: How to combine two tables - Easiest way is to sum(exams_num)=0+actual numbers
+select student_id, student_name, subject_name, sum(exams_num) attended_exams
+from (
+# Step 1: Create a sub-dataset with all the subjects using "cross join"
+select s.student_id, student_name, u.subject_name, 0 as exams_num
+from Students s cross join Subjects u
+union
+# Step 2: Create a sub-dataset with number of exams (This is a normal, simple step)
+select s.student_id, student_name, subject_name, count(*) as exams_num
+from Examinations e left join Students s 
+on e.student_id = s.student_id
+group by s.student_id, subject_name
+) a
+group by student_id, subject_name
+order by student_id, subject_name
+
+================
+570. Managers with at Least 5 Direct reports
+
+Description:
+
+Table: Employee
+
++-------------+---------+
+| Column Name | Type    |
++-------------+---------+
+| id          | int     |
+| name        | varchar |
+| department  | varchar |
+| managerId   | int     |
++-------------+---------+
+id is the primary key (column with unique values) for this table.
+Each row of this table indicates the name of an employee, their department, and the id of their manager.
+If managerId is null, then the employee does not have a manager.
+No employee will be the manager of themself.
+ 
+
+Write a solution to find managers with at least five direct reports.
+
+Return the result table in any order.
+
+The result format is in the following example.
+
+Example 1:
+
+Input: 
+Employee table:
++-----+-------+------------+-----------+
+| id  | name  | department | managerId |
++-----+-------+------------+-----------+
+| 101 | John  | A          | null      |
+| 102 | Dan   | A          | 101       |
+| 103 | James | A          | 101       |
+| 104 | Amy   | A          | 101       |
+| 105 | Anne  | A          | 101       |
+| 106 | Ron   | B          | 101       |
++-----+-------+------------+-----------+
+Output: 
++------+
+| name |
++------+
+| John |
++------+
+
+
+-----------------
+My solution:
+1. Create a raw table:
+select a.managerId, count(a.managerId) as direct_num, b.name
+#from Employee a left join Employee b
+from Employee a join Employee b
+on a.managerId = b.id
+group by a.managerId
+having direct_num >= 5
+But I struggled on null value. Eventually I figured out using join instead of left join.
+
+2. Select the data as requested:
+select name
+from (
+#select a.managerId, count(a.managerId) as direct_num, COALESCE(b.name, null) as name
+select a.managerId, count(a.managerId) as direct_num, b.name
+#from Employee a left join Employee b
+from Employee a join Employee b
+on a.managerId = b.id
+group by a.managerId
+having direct_num >= 5
+) c
+
+==================
+1934. Confirmation Rate
+
+--------------
+Description:
+Table: Signups
+
++----------------+----------+
+| Column Name    | Type     |
++----------------+----------+
+| user_id        | int      |
+| time_stamp     | datetime |
++----------------+----------+
+user_id is the column of unique values for this table.
+Each row contains information about the signup time for the user with ID user_id.
+ 
+
+Table: Confirmations
+
++----------------+----------+
+| Column Name    | Type     |
++----------------+----------+
+| user_id        | int      |
+| time_stamp     | datetime |
+| action         | ENUM     |
++----------------+----------+
+(user_id, time_stamp) is the primary key (combination of columns with unique values) for this table.
+user_id is a foreign key (reference column) to the Signups table.
+action is an ENUM (category) of the type ('confirmed', 'timeout')
+Each row of this table indicates that the user with ID user_id requested a confirmation message at time_stamp and that confirmation message was either confirmed ('confirmed') or expired without confirming ('timeout').
+ 
+
+The confirmation rate of a user is the number of 'confirmed' messages divided by the total number of requested confirmation messages. The confirmation rate of a user that did not request any confirmation messages is 0. Round the confirmation rate to two decimal places.
+
+Write a solution to find the confirmation rate of each user.
+
+Return the result table in any order.
+
+The result format is in the following example.
+
+Example 1:
+
+Input: 
+Signups table:
++---------+---------------------+
+| user_id | time_stamp          |
++---------+---------------------+
+| 3       | 2020-03-21 10:16:13 |
+| 7       | 2020-01-04 13:57:59 |
+| 2       | 2020-07-29 23:09:44 |
+| 6       | 2020-12-09 10:39:37 |
++---------+---------------------+
+Confirmations table:
++---------+---------------------+-----------+
+| user_id | time_stamp          | action    |
++---------+---------------------+-----------+
+| 3       | 2021-01-06 03:30:46 | timeout   |
+| 3       | 2021-07-14 14:00:00 | timeout   |
+| 7       | 2021-06-12 11:57:29 | confirmed |
+| 7       | 2021-06-13 12:58:28 | confirmed |
+| 7       | 2021-06-14 13:59:27 | confirmed |
+| 2       | 2021-01-22 00:00:00 | confirmed |
+| 2       | 2021-02-28 23:59:59 | timeout   |
++---------+---------------------+-----------+
+Output: 
++---------+-------------------+
+| user_id | confirmation_rate |
++---------+-------------------+
+| 6       | 0.00              |
+| 3       | 0.00              |
+| 7       | 1.00              |
+| 2       | 0.50              |
++---------+-------------------+
+Explanation: 
+User 6 did not request any confirmation messages. The confirmation rate is 0.
+User 3 made 2 requests and both timed out. The confirmation rate is 0.
+User 7 made 3 requests and all were confirmed. The confirmation rate is 1.
+User 2 made 2 requests where one was confirmed and the other timed out. The confirmation rate is 1 / 2 = 0.5.
+
+-----------------
+My solution:
+
+1. Create table for total
+2. Create table for confirmed count
+3. Use 'Driver Table' Signups to left join above two tables
+
+select s.user_id, 
+case
+    when conf_cnt is null or act_cnt is null then 0
+    else round(conf_cnt/act_cnt,2)
+end as confirmation_rate
+from
+Signups s
+left join
+(
+select user_id, count(action) act_cnt
+from Confirmations
+group by user_id
+) as act_total
+on s.user_id=act_total.user_id
+left join
+(
+select user_id, count(action) conf_cnt
+from Confirmations
+where action='confirmed'
+group by user_id
+) as conf_total
+on s.user_id=conf_total.user_id
+
+
+===================
+How to determine odd or even number:
+
+# Write your MySQL query statement below
+select id, movie, description, rating
+from Cinema
+where (id % 2) <> 0
+and description <> 'boring'
+order by rating desc
+
+
+====================
+Left join twice to ensure all product_ids are included:
+
+select Prices.product_id, 
+case 
+when units is null then 0
+else round(sum(price_tot)/sum(units), 2) 
+end as average_price 
+from Prices left join
+(
+select p.product_id, price, units, price*units as price_tot
+from Prices p left join UnitsSold u
+on p.product_id = u.product_id
+where u.purchase_date >= p.start_date and 
+u.purchase_date <= p.end_date
+) detail
+on Prices.product_id = detail.product_id
+group by product_id
+
+
+select Project.project_id, 
+case 
+when count(detail.employee_id) = 0 then 0
+else round(sum(experience_years)/count(detail.employee_id), 2)
+end as average_years
+from Project left join
+(
+select project_id, p.employee_id, experience_years
+from Project p left join Employee e
+on p.employee_id = e.employee_id
+) detail
+on Project.project_id = detail.project_id
+group by Project.project_id
+
+================================
+1633. Percentage of Users Attended a contest
+
+Table: Users
+
++-------------+---------+
+| Column Name | Type    |
++-------------+---------+
+| user_id     | int     |
+| user_name   | varchar |
++-------------+---------+
+user_id is the primary key (column with unique values) for this table.
+Each row of this table contains the name and the id of a user.
+ 
+
+Table: Register
+
++-------------+---------+
+| Column Name | Type    |
++-------------+---------+
+| contest_id  | int     |
+| user_id     | int     |
++-------------+---------+
+(contest_id, user_id) is the primary key (combination of columns with unique values) for this table.
+Each row of this table contains the id of a user and the contest they registered into.
+ 
+
+Write a solution to find the percentage of the users registered in each contest rounded to two decimals.
+
+Return the result table ordered by percentage in descending order. In case of a tie, order it by contest_id in ascending order.
+
+The result format is in the following example.
+
+ 
+
+Example 1:
+
+Input: 
+Users table:
++---------+-----------+
+| user_id | user_name |
++---------+-----------+
+| 6       | Alice     |
+| 2       | Bob       |
+| 7       | Alex      |
++---------+-----------+
+Register table:
++------------+---------+
+| contest_id | user_id |
++------------+---------+
+| 215        | 6       |
+| 209        | 2       |
+| 208        | 2       |
+| 210        | 6       |
+| 208        | 6       |
+| 209        | 7       |
+| 209        | 6       |
+| 215        | 7       |
+| 208        | 7       |
+| 210        | 2       |
+| 207        | 2       |
+| 210        | 7       |
++------------+---------+
+Output: 
++------------+------------+
+| contest_id | percentage |
++------------+------------+
+| 208        | 100.0      |
+| 209        | 100.0      |
+| 210        | 100.0      |
+| 215        | 66.67      |
+| 207        | 33.33      |
++------------+------------+
+Explanation: 
+All the users registered in contests 208, 209, and 210. The percentage is 100% and we sort them in the answer table by contest_id in ascending order.
+Alice and Alex registered in contest 215 and the percentage is ((2/3) * 100) = 66.67%
+Bob registered in contest 207 and the percentage is ((1/3) * 100) = 33.33%
+
+-------------------
+My solution:
+1. Create a table of all distinct Users/Contests using cross join: all_comb
+2. Create a Counter column: If null then 0 else 1
+3. Calculate to get the final table
+
+select contest_id, round(sum(register_cnt)/count(contest_id)*100, 2) percentage
+from
+(
+select all_comb.contest_id, Register.user_id,
+case when Register.user_id is null then 0
+else 1
+end as register_cnt
+from
+(
+select distinct u.user_id, r.contest_id
+from Users u cross join Register r
+order by u.user_id, r.contest_id
+) all_comb
+left join
+Register
+on
+all_comb.contest_id = Register.contest_id 
+and all_comb.user_id = Register.user_id
+order by contest_id, Register.user_id
+) as perc_table
+group by contest_id
+order by percentage desc, contest_id
+
+===============================================
+# How to use lag():
+
+# Write your MySQL query statement below
+select round(sum(log_again_cnt)/count(distinct player_id), 2) as fraction
+from
+( 
+select player_id, 
+case when (login_cnt = 2 and diff_days = 1) then 1
+else 0
+end as log_again_cnt
+from
+( 
+select player_id, 
+row_number() over(partition by player_id order by event_date) as login_cnt,
+lag(event_date) over(partition by player_id order by event_date) as prev_event_date,
+event_date,
+case when lag(event_date) over(partition by player_id order by event_date) is null then 0
+else (datediff(event_date, lag(event_date) over(partition by player_id order by event_date)))
+end as diff_days
+from Activity
+) detail_table
+#group by player_id
+) aggr_table
+
+==============================
+# How to use rank(), dense_rank(), row_number()
+
+SALARY | ROW_NUMBER | RANK | DENSE_RANK
+1000   | 1          | 1    | 1
+1500   | 2          | 2    | 2
+1500   | 3          | 2    | 2
+2000   | 4          | 4    | 3
+2200   | 5          | 5    | 4
+2500   | 6          | 6    | 5
+2500   | 7          | 6    | 5
+2500   | 8          | 6    | 5
+3000   | 9          | 9    | 6
+
+Example:
+# Write your MySQL query statement below
+select product_id, year as first_year, quantity, price
+from
+(
+select product_id, year, dense_rank() over(partition by product_id order by year) as year_seq, quantity, price
+from Sales
+where product_id in (select distinct product_id from Product)
+) details
+where year_seq = 1
+
+============================Common Table Expressions================================
+1.
+with class_agg as
+(
+select class, count(distinct student) as student_num
+from Courses
+group by class
+)
+select class
+from class_agg
+where student_num >= 5
+
+with num_agg as
+(
+select num, count(num) as num_cnt
+from MyNumbers
+group by num
+)
+select max(num) num
+from num_agg
+where num_cnt = 1
+
+----------------------------
+2. How to use multiple CTE tables:
+
+with prod_counter as(
+    select count(distinct product_key) as prod_total
+    from Product
+),
+cust_prod_counter as (select distinct customer_id, count(distinct product_key) as prod_cnt
+from Customer
+group by customer_id
+)
+select distinct cust_prod_counter.customer_id
+from cust_prod_counter, prod_counter
+where cust_prod_counter.prod_cnt = prod_counter.prod_total
+
+---------------------------
+3. Generating values:
+--Give a table name `Numbers" and a column `i` to hold the numbers
+WITH Numbers(i) AS (
+--Starting number/index
+SELECT 1
+--Top-level UNION ALL operator required for recursion
+UNION ALL
+--Iteration expression:
+SELECT i + 1
+--Table expression we first declared used as source for recursion
+FROM Numbers
+--Clause to define the end of the recursion
+WHERE i < 5
+)
+--Use the generated table expression like a regular table
+SELECT i FROM Numbers;
+i
+1
+2
+3
+4
+5
+
+-----------------------------------
+4. recursively enumerating a subtree
+
+WITH RECURSIVE ManagedByJames(Level, ID, FName, LName) AS (
+-- start with this row
+SELECT 1, ID, FName, LName
+FROM Employees
+WHERE ID = 1
+UNION ALL
+-- get employees that have any of the previously selected rows as manager
+SELECT ManagedByJames.Level + 1,
+Employees.ID,
+Employees.FName,
+Employees.LName
+FROM Employees
+JOIN ManagedByJames
+ON Employees.ManagerID = ManagedByJames.ID
+ORDER BY 1 DESC -- depth-first search
+)
+SELECT * FROM ManagedByJames;
+Level ID FName LName
+1 1 James Smith
+2 2 John Johnson
+3 4 Johnathon Smith
+2 3 Michael Williams
+
+------------------------
+Examples:
+(1) Define a CTE table with all static values
+with Category_table as (
+    select 'Low Salary' as category_all
+    union all
+    select 'Average Salary'
+    union all
+    select 'High Salary'
+)
+select c.category_all as category, 
+case when b.accounts_count is not null then b.accounts_count
+else 0
+end as accounts_count
+from Category_table c
+left join
+(
+select category, count(account_id) as accounts_count
+from
+(
+select account_id, 
+case 
+when income < 20000 then "Low Salary"
+when income >= 20000 and income <= 50000 then "Average Salary"
+when income > 50000 then "High Salary"
+end as category
+from Accounts
+) a
+group by category
+) b
+on c.category_all = b.category
+
+(2) Always try the UNION ALL: Keep the duplicates
+# Write your MySQL query statement below
+select id, friend_total as num
+from
+(
+select id, sum(accepter_cnt) as friend_total, 
+row_number() over(order by sum(accepter_cnt) desc) as rn
+from
+(
+select accepter_id as id, count(requester_id) accepter_cnt
+from RequestAccepted
+group by accepter_id
+union all
+select requester_id as id, count(accepter_id) accepter_cnt
+from RequestAccepted
+group by requester_id
+) as a
+group by id
+) as b
+where rn=1
+
+====================UNION=====================================
+The Short Answer: SQL UNION vs. UNION ALL. The key difference is that UNION removes duplicate records, whereas UNION ALL includes all duplicates.
+
+Examples:
+1.
+select distinct first_value(name) over(order by movie_count desc, name asc) as results
+from
+(
+select name, count(movie_id) as movie_count
+from MovieRating m
+left join Users u
+on m.user_id = u.user_id
+group by name
+) a
+union all
+select distinct first_value(title) over(order by avg_rating desc, title asc) as results
+from
+(
+select title, avg(rating) as avg_rating
+from MovieRating mr
+left join
+Movies mo
+on mr.movie_id = mo.movie_id
+where (created_at >= '2020-02-01' and created_at < '2020-03-01') 
+group by title
+) b
+
+
+=====================subquery=================================================
+1.
+select reports_to as employee_id, mgr_name as name, count(emp_name) as reports_count, round(avg(emp_age),0) as average_age
+from
+(
+select emp.reports_to, mgr.name as mgr_name, emp.name as emp_name, emp.age as emp_age 
+from Employees emp join Employees mgr
+on emp.reports_to = mgr.employee_id 
+where emp.reports_to is not null) a
+group by reports_to
+order by reports_to
+
+=====================Union===================================================
+1. Union and having(with group by)
+(
+select employee_id, department_id
+from Employee
+group by employee_id
+having count(department_id) = 1
+)
+union
+(
+select employee_id, department_id
+from Employee
+where primary_flag = 'Y'
+)
+
+======================lag and lead===========================================
+1. Note: Didn't solve the problem... When there are multiple clusters, such as -8, -8, 4, 3, -8, -8.
+# Write your MySQL query statement below
+select num as ConsecutiveNums
+from
+( 
+select num, lag(num, 1, 0) over(order by id) as num_lag, 
+case when num = lag(num, 1, 0) over(order by id) then 1
+else 0
+end as reappear
+from Logs
+)a
+group by ConsecutiveNums
+having sum(reappear)+1 >= 3
+
+2. Use multiple leveles of subqueries: May not be most efficient, but it works.
+select distinct num as ConsecutiveNums
+from
+(
+select id, num, num_prev, equal_1, equal_1_prev, 
+case when equal_1 = equal_1_prev and equal_1_prev = 1 then 1
+else 0 end as equal_2
+from
+( 
+select id, num, num_prev, equal_1,
+lag(equal_1, 1, 0) over(order by id) as equal_1_prev
+from
+(
+select 
+id, num, num_prev, 
+case when num = num_prev then 1
+else 0 end as equal_1
+from
+(
+select id, num,
+lag(num, 1, 0) over(order by id) as num_prev
+from Logs
+order by id
+) a
+) b
+) c
+) d
+where equal_2 = 1
+
+3. Exchange seats
+# Write your MySQL query statement below
+select id, next_stud as student
+from
+(
+select id, student, 
+case when lag(student,1) over(order by id) is null then student
+else lag(student,1) over(order by id)
+end as next_stud
+from Seat
+) a
+where id % 2 = 0
+union
+select id, prev_stud as student
+from
+(
+select id, student, 
+case when lead(student,1) over(order by id) is null then student
+else lead(student,1) over(order by id)
+end as prev_stud
+from Seat
+) b
+where id % 2 = 1
+order by id
+
+=========================Row Number=======================================
+select id, num, row_number() over(partition by num order by id) as rn
+from Logs
+order by id
+| id | num | rn |
+| -- | --- | -- |
+| 1  | 1   | 1  |
+| 2  | 1   | 2  |
+| 3  | 1   | 3  |
+| 4  | 2   | 1  |
+| 5  | 1   | 4  |   <-- doesn't work. It continues to number
+| 6  | 2   | 2  |
+| 7  | 2   | 3  |
+
+===========================Functions=====================================
+Aggregate
+
+1. IIF
+SELECT BusinessEntityID, SalesYTD,
+IIF(SalesYTD > 200000, 'Bonus', 'No Bonus') AS 'Bonus?'
+FROM Sales.SalesPerson
+
+2. FIRST_VALUE, LAST_VALUE
+SELECT StateProvinceID, Name, TaxRate,
+FIRST_VALUE(StateProvinceID)
+OVER(ORDER BY TaxRate ASC) AS FirstValue
+FROM SalesTaxRate;
+
+SELECT TerritoryID, StartDate, BusinessentityID,
+LAST_VALUE(BusinessentityID)
+OVER(ORDER BY TerritoryID) AS LastValue
+FROM SalesTerritoryHistory;
+
+Example:
+(1) 
+select a.product_id, 
+case when b.price is null then 10 
+else b.price
+end as price  
+from
+(
+select distinct product_id
+from Products
+) a
+left join
+(
+select distinct product_id, first_value(new_price) over(partition by product_id order by change_date desc) as price
+from Products
+where change_date <= '2019-08-16'
+) b
+on a.product_id = b.product_id
+
+(2)
+select distinct last_value(person_name) over() as person_name
+from
+(
+select person_name, weight, board_weight
+from
+(
+select person_id, person_name, weight, 
+sum(weight) over(order by turn) board_weight
+from Queue
+order by turn) a
+where board_weight <= 1000
+) b
+------------------------------------
+3. PERCENT_RANK, CUME_DIST
+SELECT BusinessEntityID, JobTitle, SickLeaveHours,
+PERCENT_RANK() OVER(PARTITION BY JobTitle ORDER BY SickLeaveHours DESC)
+AS "Percent Rank",
+CUME_DIST() OVER(PARTITION BY JobTitle ORDER BY SickLeaveHours DESC)
+AS "Cumulative Distribution"
+FROM Employee;
+In this example, you use an ORDER clause to partition – or group – the rows retrieved by the SELECT statement based
+on employees' job titles, with the results in each group sorted based on the numbers of sick leave hours that
+employees have used.
+BusinessEntityID JobTitle SickLeaveHours Percent Rank Cumulative Distribution
+267 Application Specialist 57 0 0.25
+268 Application Specialist 56 0.333333333333333 0.75
+269 Application Specialist 56 0.333333333333333 0.75
+272 Application Specialist 55 1 1
+262 Assitant to the Cheif Financial
+Officer 48 0 1
+239 Benefits Specialist 45 0 1
+252 Buyer 50 0 0.111111111111111
+251 Buyer 49 0.125 0.333333333333333
+256 Buyer 49 0.125 0.333333333333333
+253 Buyer 48 0.375 0.555555555555555
+254 Buyer 48 0.375 0.555555555555555
+
+Another example:
+SELECT id, num, 
+percent_rank() over(partition by num order by id) as perc,
+cume_dist() over(partition by num order by id) as cume
+from Logs
+order by id
+| id | num | perc               | cume               |
+| -- | --- | ------------------ | ------------------ |
+| 1  | 1   | 0                  | 0.25               |
+| 2  | 1   | 0.3333333333333333 | 0.5                |
+| 3  | 1   | 0.6666666666666666 | 0.75               |
+| 4  | 2   | 0                  | 0.3333333333333333 |
+| 5  | 1   | 1                  | 1                  |
+| 6  | 2   | 0.5                | 0.6666666666666666 |
+| 7  | 2   | 1                  | 1                  |
+
+======================Window functions==================================
+1. Setting up a flag if other rows have a common property
+Table items
+id name tag
+1 example unique_tag
+2 foo simple
+42 bar simple
+3 baz hello
+51 quux world
+I'd like to get all those lines and know if a tag is used by other lines
+SELECT id, name, tag, COUNT(*) OVER (PARTITION BY tag) > 1 AS flag FROM items
+The result will be:
+id name tag flag
+1 example unique_tag false
+2 foo simple true
+42 bar simple true
+3 baz hello false
+51 quux world false
+
+2. Getting a running total
+SELECT date, amount, SUM(amount) OVER (ORDER BY date ASC) AS running
+FROM operations
+ORDER BY date ASC
+
+3. Adding the total rows selected to every row
+SELECT your_columns, COUNT(*) OVER() as Ttl_Rows FROM your_data_set
+
+Examples:
+(1)
+select distinct last_value(person_name) over() as person_name
+from
+(
+select person_name, weight, board_weight
+from
+(
+select person_id, person_name, weight, 
+sum(weight) over(order by turn) board_weight
+from Queue
+order by turn) a
+where board_weight <= 1000
+) b
+
+(2) Moving Average of previous 7 days (Maybe there is a simpler way of doing it)
+# Write your MySQL query statement below
+select a.visited_on, 
+(select sum(b.amount)
+from Customer b 
+where datediff(a.visited_on, b.visited_on) <= 6 and b.visited_on <= a.visited_on
+) 
+as amount,
+round(sum((select sum(b.amount)
+from Customer b 
+where datediff(a.visited_on, b.visited_on) <= 6 and b.visited_on <= a.visited_on
+)/7), 2) as average_amount
+from (select c.visited_on, sum(c.amount) as amount, 
+(select count(distinct d.visited_on) from Customer d where datediff(c.visited_on, d.visited_on) <= 6 and d.visited_on <= c.visited_on) as cnt 
+from Customer c
+group by c.visited_on
+order by c.visited_on) a
+where a.cnt =7
+group by a.visited_on
+order by a.visited_on
+
+
+=================subquery====================================
+1. Section 52.1: Subquery in FROM clause
+A subquery in a FROM clause acts similarly to a temporary table that is generated during the execution of a query
+and lost afterwards.
+SELECT Managers.Id, Employees.Salary
+FROM (
+SELECT Id
+FROM Employees
+WHERE ManagerId IS NULL
+) AS Managers
+JOIN Employees ON Managers.Id = Employees.Id
+
+Section 52.2: Subquery in SELECT clause
+SELECT
+Id,
+FName,
+LName,
+(SELECT COUNT(*) FROM Cars WHERE Cars.CustomerId = Customers.Id) AS NumberOfCars
+FROM Customers
+
+Section 52.3: Subquery in WHERE clause
+Use a subquery to filter the result set. For example this will return all employees with a salary equal to the highest
+paid employee.
+SELECT *
+FROM Employees
+WHERE Salary = (SELECT MAX(Salary) FROM Employees)
+
+Section 52.4: Correlated Subqueries
+Correlated (also known as Synchronized or Coordinated) Subqueries are nested queries that make references to
+the current row of their outer query:
+SELECT EmployeeId
+FROM Employee AS eOuter
+WHERE Salary > (
+SELECT AVG(Salary)
+FROM Employee eInner
+WHERE eInner.DepartmentId = eOuter.DepartmentId
+)
+Subquery SELECT AVG(Salary) ... is correlated because it refers to Employee row eOuter from its outer query.
+
+Section 52.5: Filter query results using query on different table
+This query selects all employees not on the Supervisors table.
+SELECT *
+SQL Notes for Professionals 140
+FROM Employees
+WHERE EmployeeID not in (SELECT EmployeeID
+FROM Supervisors)
+The same results can be achieved using a LEFT JOIN.
+SELECT *
+FROM Employees AS e
+LEFT JOIN Supervisors AS s ON s.EmployeeID=e.EmployeeID
+WHERE s.EmployeeID is NULL
+Section 52.6: Subqueries in FROM clause
+You can use subqueries to define a temporary table and use it in the FROM clause of an "outer" query.
+SELECT * FROM (SELECT city, temp_hi - temp_lo AS temp_var FROM weather) AS w
+WHERE temp_var > 20;
+The above finds cities from the weather table whose daily temperature variation is greater than 20. The result is:
+city temp_var
+ST LOUIS 21
+LOS ANGELES 31
+LOS ANGELES 23
+LOS ANGELES 31
+LOS ANGELES 27
+LOS ANGELES 28
+LOS ANGELES 28
+LOS ANGELES 32
+
+Section 52.7: Subqueries in WHERE clause
+The following example finds cities (from the cities example) whose population is below the average temperature
+(obtained via a sub-qquery):
+SELECT name, pop2000 FROM cities
+WHERE pop2000 < (SELECT avg(pop2000) FROM cities);
+Here: the subquery (SELECT avg(pop2000) FROM cities) is used to specify conditions in the WHERE clause. The result
+is:
+name pop2000
+San Francisco 776733
+ST LOUIS 348189
+Kansas City 146866
